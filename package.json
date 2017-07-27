@@ -1,0 +1,16 @@
+{
+  "name": "lametric-vasttrafik",
+  "private": true,
+  "version": "1.0.2",
+  "description": "LaMetric is a hackable internet clock. This is a Oauth2 pulling of the feed for Västrafik's API to show the status of a single tramstop in Gothenburg, Sweden, and then display it on the Lametric.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [],
+  "author": "Craig Morey",
+  "license": "ISC",
+  "dependencies": {
+    "request": "^2.79.0"
+  }
+}
