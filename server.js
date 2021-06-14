@@ -6,94 +6,84 @@ const url = require('url');
 const ICONERROR   = 'a5106';
 let tokenTimeStart = new Date();
 
-http.createServer((req, res) => {
-  getOauth2(req).then(token => {
-    getDueTimes(token,req).then(data => {
-      res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(data));
-    }).catch(error => {
-      console.error('ERROR1');
-      console.error(error);
-      res.writeHead(500, { 'content-type': 'application/json' });
-      res.end(JSON.stringify( 'ERROR1' + error ));
-    });
-  }).catch(error => {
-    console.error('ERROR2');
-    console.error(error);
-    const data = {
-      frames : [{
-        'icon': ICONERROR,
-        'text': 'OAuth2 key failure'
-      }]
-    };
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify(data));
-  });
-}).listen(3000);
 
-function getOauth2(req) {
-  
-  let accessToken = "";
-  let tokenMaxAge = 3000;
-  let KEY = false;                                                        // VÄSTTRAFIK APP API KEY (in URL arg)
-  let SECRET = false;                                                     // VÄSTTRAFIK APP API SECRET (in URL arg)
-  const tokenTimeNow = new Date();
-  
-  // get the OAuth2 key and secret from url arguments
-  const urlQuery = url.parse(req.url,true).query;
-  if (urlQuery.key)
-    KEY    = urlQuery.key;
-  if (urlQuery.secret)
-    SECRET    = urlQuery.secret;
-  
-  return new Promise((resolve, reject) => {
-    if (!accessToken.length || ((tokenTimeNow - tokenTimeStart)/1000 ) > tokenMaxAge) {
-      
-      if (!KEY.length || !SECRET.length) {
-        reject('no data recieved. Possibly token expired.');
-      }
-      const KEYSECRET64 = new Buffer(KEY + ':' + SECRET).toString('base64');
-      const OAUTHURL    = "https://api.vasttrafik.se:443/token";          // VÄSTTRAFIK OAUTH2 TOKEN REQUEST
-      const SCOPE       = "LAMETRICNODESERVER4";                          // VÄSTTRAFIK APP "SCOPE" - just a random name of the client.
-      
-      request({
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic ' + KEYSECRET64,
-        },
-        body: 'grant_type=client_credentials&scope=' + SCOPE,
-        url: OAUTHURL
-      }, (error, res, body) => {
-        if (error || body.error) {
-          const dataOut = { 'frames': [
-            {
-              'icon': ICONERROR,
-              'text': error || body.error
-            }
-          ]};
-          return reject(dataOut);
-        }
-        
-        const dataIn = JSON.parse(body);
-        const tokenScope = dataIn.scope;
-        const tokenBearer = dataIn.token_type;
-        const epiresIn = dataIn.expires_in;
-        const accessToken = dataIn.access_token;
-        
-        resolve(accessToken);
-      });
-    } else {
-      resolve(accessToken);
+const calcDST = function() {
+  let   UTCPLUS     = 1;
+  let   SERVERTIMEADJUST = UTCPLUS;
+  const dateObj = new Date();
+  let   dateAdustedObj = new Date();
+  const dates = [
+    {
+      time : '2020-10-25T03:00:00',
+      utcplus: UTCPLUS
+    },
+    {
+      time : '2021-03-28T02:00:00',
+      utcplus: UTCPLUS + 1
+    },
+    {
+      time : '2021-10-31T03:00:00',
+      utcplus: UTCPLUS
+    },
+    {
+      time : '2022-03-27T02:00:00',
+      utcplus: UTCPLUS + 1
+    },
+    {
+      time : '2022-10-30T03:00:00',
+      utcplus: UTCPLUS
+    },
+    {
+      time : '2023-03-26T02:00:00',
+      utcplus: UTCPLUS + 1
+    },
+    {
+      time : '2023-10-29T03:00:00',
+      utcplus: UTCPLUS
+    },
+    {
+      time : '2024-03-31T02:00:00',
+      utcplus: UTCPLUS + 1
+    },
+    {
+      time : '2024-10-27T03:00:00',
+      utcplus: UTCPLUS
+    },
+    {
+      time : '2025-03-30T02:00:00',
+      utcplus: UTCPLUS + 1
+    },
+    {
+      time : '2025-10-26T03:00:00',
+      utcplus: UTCPLUS
     }
-  });
-  
-}
-
+  ];
+  const sixmonths = 1000*60*60*24*30*6;
+  let   milestone = '2000-01-01T00:00:00';
+  let   milestoneSoFar = milestone;
+  for (let i=0; i<dates.length; i++) {
+    milestone = dates[i].time;
+    if (dateObj > new Date(milestone)) {
+      //console.log('***>',dateObj,new Date(milestone),sixmonths)
+      //console.log('***+',(dateObj - new Date(milestone)),sixmonths)
+      SERVERTIMEADJUST = dates[i].utcplus;
+      milestoneSoFar = milestone;
+    }
+  }
+  dateAdustedObj = new Date(dateAdustedObj.setTime(dateObj.getTime() + (SERVERTIMEADJUST*60*60*1000)));
+  const dateDate = dateAdustedObj.getUTCFullYear() + '-' + ( dateAdustedObj.getMonth() + 1 ) + '-' + dateAdustedObj.getDate();
+  const dateTime = dateAdustedObj.getHours() + '%3A' + (dateAdustedObj.getMinutes() + '').padStart(2,'0');
+    
+  return {
+    obj: dateAdustedObj,
+    date: dateDate,
+    time: dateTime,
+    daylightAdj: SERVERTIMEADJUST,
+    daylightDate: milestoneSoFar
+  };
+};
 
 function getDueTimes(token,req) {
-  // we're returning a promise so we can later reuse in
-  // a web server
   
   const APIURL      = 'https://api.vasttrafik.se/bin/rest.exe/v2/departureBoard';
   let   DIRECTION   = true;                       // which tracks to select. true = TRACK, false = TRACKALT
@@ -106,60 +96,25 @@ function getDueTimes(token,req) {
   const ICONTRAMOLD = 'a5101';
   const ICONTRAMNEW = 'a5244';
   const ICONBUS     = 'a5102';
-  let   UTCPLUS     =  1;            
   
-  const calcDST = function() {
-    const dates = [
-      {
-        time : '2017-03-27T02:00:00',
-        utcplus: UTCPLUS + 1
-      },
-      {
-        time : '2017-10-29T03:00:00',
-        utcplus: UTCPLUS
-      },
-      {
-        time : '2018-03-25T02:00:00',
-        utcplus: UTCPLUS + 1
-      },
-      {
-        time : '2018-10-28T03:00:00',
-        utcplus: UTCPLUS
-      },
-      {
-        time : '2019-03-31T02:00:00',
-        utcplus: UTCPLUS + 1
-      },
-      {
-        time : '2019-10-27T03:00:00',
-        utcplus: UTCPLUS
-      },
-      {
-        time : '2020-03-29T02:00:00',
-        utcplus: UTCPLUS + 1
-      },
-      {
-        time : '2020-10-25T03:00:00',
-        utcplus: UTCPLUS
-      }
-    ];
-    for (let i=0; i<dates.length; i++) {
-      if (new Date() > new Date(dates[i].time)) {
-        return dates[i].utcplus;
-      }
-    }
-  };
+  const dateAdustedObj = calcDST(); 
   
-  let   SERVERTIMEADJUST = calcDST();  
-  
+  // we're returning a promise so we can later reuse in
+  // a web server
   return new Promise((resolve, reject) => {
     
-    const dateObj = new Date();
-    let   dateAdustedObj = new Date();
-          dateAdustedObj = new Date(dateAdustedObj.setTime(dateObj.getTime() + (SERVERTIMEADJUST*60*60*1000)));
-    const dateDate = dateAdustedObj.getUTCFullYear() + '-' + ( dateAdustedObj.getMonth() + 1 ) + '-' + dateAdustedObj.getDate();
-    const dateTime = dateAdustedObj.getHours() + '%3A' + dateAdustedObj.getMinutes();
-    const apiUrl = APIURL + '?id=' + STOPID + '&date=' + dateDate + '&time=' + dateTime + '&format=json';
+    // if the last daylight savings milestine in the config was over 6months old - report
+    if (dateAdustedObj === 'no-daylight-dates') {
+      const dataOut = { 
+        'frames': {
+          'icon': ICONERROR,
+          'text': 'No daylight savings config for at least 6 months - update server code!'
+        } 
+      };
+      return reject(dataOut);
+    }  
+    
+    const apiUrl = APIURL + '?id=' + STOPID + '&date=' + dateAdustedObj.date + '&time=' + dateAdustedObj.time + '&format=json';
     
     // tidy URL QUERY ARGS
     const urlQuery = url.parse(req.url,true).query;
@@ -231,7 +186,7 @@ function getDueTimes(token,req) {
           //*DEBUG*/ frames.push('departure.track found:' + departure.track)
           // calc time of departure, compare to current time (with UTC+1 adjust)
           const departureDateObj = new Date(departure.rtDate + 'T' + departure.rtTime + ':00');
-          const departureDateWaitMs = departureDateObj.getTime() - dateAdustedObj.getTime(); // note the UTC/CET adjustment
+          const departureDateWaitMs = departureDateObj.getTime() - dateAdustedObj.obj.getTime(); // note the UTC/CET adjustment
           const departureDateWaitMins = Math.round(departureDateWaitMs / 1000 / 60);
           //*DEBUG*/ frames.push('* departureDateWaitMins:' + departureDateWaitMins)
           //*DEBUG*/ frames.push('* MINTIME:' + MINTIME)
@@ -265,7 +220,7 @@ function getDueTimes(token,req) {
       if (!frames.length) {
         frames = {
           'icon': ICONERROR,
-          'text': 'no departures found for id=' + STOPID + '&date=' + dateDate + '&time=' + dateTime
+          'text': 'no departures found for id=' + STOPID + '&date=' + dateAdustedObj.date + '&time=' + dateAdustedObj.time
         };
       }
       
@@ -278,8 +233,10 @@ function getDueTimes(token,req) {
         'track': TRACK,
         'framesmax': FRAMESMAX,
         'mintime': MINTIME,
-        'servertime': dateObj,
-        'adjustedtime': dateAdustedObj,
+        'adjusteddate': dateAdustedObj.date,
+        'adjustedtime': dateAdustedObj.time,
+        'adjustedBy': dateAdustedObj.daylightAdj,
+        'lastDaylightAdjustment': dateAdustedObj.daylightDate,
         'url': apiUrl,
         //'departures': departures,
         'departuresLength': departures.length,
@@ -288,4 +245,90 @@ function getDueTimes(token,req) {
       resolve(dataOut);
     });
   });
+}
+
+http.createServer((req, res) => {
+  getOauth2(req).then(token => {
+    console.log('***',getDueTimes(token,req))
+    getDueTimes(token,req).then(data => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(data));
+    }).catch(error => {
+      console.error('ERROR1');
+      console.error(error);
+      res.writeHead(500, { 'content-type': 'application/json' });
+      res.end(JSON.stringify( error ));
+    });
+  }).catch(error => {
+    console.error('ERROR2');
+    console.error(error);
+    const data = {
+      frames : [{
+        'icon': ICONERROR,
+        'text': 'OAuth2 error: ' + error,
+        'time': calcDST()
+      }]
+    };
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(data));
+  });
+}).listen(3000);
+
+function getOauth2(req) {
+  
+  let accessToken = "";
+  let tokenMaxAge = 3000;
+  let KEY = false;                                                        // VÄSTTRAFIK APP API KEY (in URL arg)
+  let SECRET = false;                                                     // VÄSTTRAFIK APP API SECRET (in URL arg)
+  const tokenTimeNow = new Date();
+  
+  // get the OAuth2 key and secret from url arguments
+  const urlQuery = url.parse(req.url,true).query;
+  if (urlQuery.key)
+    KEY    = urlQuery.key;
+  if (urlQuery.secret)
+    SECRET    = urlQuery.secret;
+  
+  return new Promise((resolve, reject) => {
+    if (!accessToken.length || ((tokenTimeNow - tokenTimeStart)/1000 ) > tokenMaxAge) {
+      
+      if (!KEY.length || !SECRET.length) {
+        reject('no data recieved. Possibly token expired.');
+      }
+      const KEYSECRET64 = new Buffer.from(KEY + ':' + SECRET).toString('base64');
+      const OAUTHURL    = "https://api.vasttrafik.se:443/token";          // VÄSTTRAFIK OAUTH2 TOKEN REQUEST
+      const SCOPE       = "LAMETRICNODESERVER4";                          // VÄSTTRAFIK APP "SCOPE" - just a random name of the client.
+      
+      request({
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + KEYSECRET64,
+        },
+        body: 'grant_type=client_credentials&scope=' + SCOPE,
+        url: OAUTHURL
+      }, (error, res, body) => {
+        if (error || body.error) {
+          const dataOut = { 'frames': [
+            {
+              'icon': ICONERROR,
+              'text': error || body.error
+            }
+          ]};
+          return reject(dataOut);
+        }
+        
+        const dataIn = JSON.parse(body);
+        const tokenScope = dataIn.scope;
+        const tokenBearer = dataIn.token_type;
+        const epiresIn = dataIn.expires_in;
+        const accessToken = dataIn.access_token;
+        
+        resolve(accessToken);
+      });
+    } else {
+      resolve(accessToken);
+    }
+  });
+  
 }
