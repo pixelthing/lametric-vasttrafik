@@ -14,6 +14,7 @@ The current LaMetric app is a simple indicator that polls every 15 secs. It has 
 
 ##Notes:
 
+- The LaMetric app is available to add to your LaMetric internet clock at https://apps.lametric.com/apps/v%C3%A4sttrafik_h%C3%A5llplats/3953?product=market&market=en-US
 - The Server is currently hosted on Glitch: https://vasttrafik-next-tram.glitch.me
 - This uses the V4 Västtrafik public API: https://developer.vasttrafik.se/
 - There are three urls available in this NodeJS web server:
