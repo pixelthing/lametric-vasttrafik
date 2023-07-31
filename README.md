@@ -1,7 +1,7 @@
 #lametric-vasttrafik
 --------------------
 
-[<img src="https://i.ytimg.com/vi/Hc79sDi3f0U/maxresdefault.jpg https://i9.ytimg.com/vi_webp/RyqnHhDtqmM/maxresdefault.webp" width="50%">](https://youtu.be/RyqnHhDtqmM "Video of the LaMetric app consuming the feed in this project")
+[<img src="[https://i.ytimg.com/vi/Hc79sDi3f0U/maxresdefault.jpg https://i9.ytimg.com/vi_webp/RyqnHhDtqmM/maxresdefault.webp](https://github.com/pixelthing/lametric-vasttrafik/assets/1090350/bb39b906-03be-49f2-9469-61ce2bddbb7a)" width="50%">](https://youtu.be/RyqnHhDtqmM "Video of the LaMetric app consuming the feed in this project")
 
 Node app for Västtrafik API call (OAUTH2, returning a departure board for a particular stop), used to spit out frames for a Lametric Internet clock app.
 
