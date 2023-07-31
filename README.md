@@ -15,9 +15,9 @@ The current LaMetric app is a simple indicator that polls every 15 secs. It has 
 ##Notes:
 
 - The Server is currently hosted on Glitch: https://vasttrafik-next-tram.glitch.me
-- This uses the V4 Västtrafik api (which is deprecated)
-- There are three urls:
-    - https://vasttrafik-next-tram.glitch.me/search (a search form interface to help find the stop and platform IDs of a location from a text name)
-    - https://vasttrafik-next-tram.glitch.me/?stop=KEYWORD (the search results from the previous page)
+- This uses the V4 Västtrafik public API: https://developer.vasttrafik.se/
+- There are three urls available in this NodeJS web server:
+    - https://vasttrafik-next-tram.glitch.me/search (a search form interface to help find the stop and platform IDs of a location from a text keyword)
+    - https://vasttrafik-next-tram.glitch.me/?stop=KEYWORD (the search results from the previous form)
     - https://vasttrafik-next-tram.glitch.me/?stopid=9021014004230000&track=A%2CC&framesmax=3&mintime=3 (the LaMetric click polling URL including all the query settings that can be added to the app)
 - some work was done on implementing a "opposite direction" feature, where you could click the LaMetric clock button and see an alternative set of platforms for the same stop (ie, if you set up the default platforms as "towards town", the alternatives could be "away from town"), but I couldn't get it to work. The code for this is largelye still present.
